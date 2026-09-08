@@ -673,5 +673,3 @@ int main(){
     UnloadTexture(tex_p);
     CloseWindow();
 }
-
-Rectangle pac;
