@@ -54,7 +54,7 @@ int main(){
     
     InitWindow(gwidth, gheight, "Pacman");
     SetTargetFPS(60);
-    
+
     int score=0;
     int wall_position_x[28];
     int wall_position_y[31];
@@ -673,3 +673,5 @@ int main(){
     UnloadTexture(tex_p);
     CloseWindow();
 }
+
+Rectangle pac;
