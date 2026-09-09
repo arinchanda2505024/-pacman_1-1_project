@@ -55,6 +55,8 @@ int main(){
     InitWindow(gwidth, gheight, "Pacman");
     SetTargetFPS(60);
 
+
+    int minute=0,second=0;
     int score=0;
     int wall_position_x[28];
     int wall_position_y[31];
@@ -617,10 +619,27 @@ int main(){
 
         
         DrawRectangleRec(pacman, YELLOW);
+        
+        float frame_second;
+        frame_second+=dt;
 
         DrawText(TextFormat("SCORE: %d", score), 586, 30, 30, WHITE);
         DrawText("LIFE:",600,895,26,WHITE);
         Texture2D life_sprite=LoadTexture("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\life_sprite.png");
+
+
+        if((int)(frame_second-second) == 1){
+            second++;
+            
+        }
+        if(second>=60){
+            minute++;
+            second=0;
+            frame_second=0;
+        }
+        DrawText(TextFormat("TIME: 0%d:%d", minute, second),1200,30,26,WHITE);
+        
+        
         
         for(int i=0;i<life;i++){
             DrawTexture(life_sprite,700+50*i,895,YELLOW);
