@@ -26,7 +26,7 @@ char map[htiles][wtiles+1]=
      "tdugdpwwrdpwwwwwwrdpwwrdugdt",//11done
      "tdvvddddddddddddddddddddvvdt",//12done
      "tdvpwgdugdcssiissadugduwrvdt",//13done
-     "tddddddvvdteeeeeetdvvdpwwrdt",//14done
+     "tdpwwrdvvdteeeeeetdvvdpwwrdt",//14done
      "eddddddvvdteeeeeetdvvdddddde",//15done
      "tdugduwrvdteeeeeetdvpwgdugdt",//16done
      "tdvvdpwwrdlssssssfdpwwrdvvdt",//17done
@@ -58,8 +58,14 @@ int main(){
 
     Sound dot_sound = LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\freesound_community-carrotnom-92106.mp3");
     Sound big_dot_sound= LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\chomp-1.mp3");
+    Sound ghost_eaten_sound = LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\universfield-power-punch-192118.mp3");
+    Sound pac_eaten_sound = LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\muhahaha-made-with-Voicemod.mp3");  
+    Sound game_over_sound = LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\cat-laughing-at-you-made-with-Voicemod.mp3");
+
     SetSoundVolume(dot_sound, 0.5f);
     SetSoundVolume(big_dot_sound, 0.5f);
+    SetSoundVolume(ghost_eaten_sound, 0.5f);
+    SetSoundVolume(pac_eaten_sound, 0.5f);
 
 
     int minute=0,second=0;
@@ -370,6 +376,8 @@ int main(){
             if (phase == frightened){
                 if(CheckCollisionRecs(pacman, ghost_rec_blinky) ||  CheckCollisionRecs(pacman, ghost_rec_pinky) ||  CheckCollisionRecs(pacman, ghost_rec_inky) || CheckCollisionRecs(pacman, ghost_rec_clyde)){
                     phase = eaten; 
+                    
+                    PlaySound(ghost_eaten_sound);
                     score+=200;
                     continue; 
                 }
@@ -612,10 +620,15 @@ int main(){
                 
                 life--;
                 if(life>0){
+                    PlaySound(pac_eaten_sound);
                     goto here;
                 }
                 else if(life == 0){
+
                     over=true;
+                    PlaySound(game_over_sound);
+                    
+                    
                 }
             }
             
@@ -648,15 +661,20 @@ int main(){
         Texture2D life_sprite=LoadTexture("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\life_sprite.png");
 
 
-        if((int)(frame_second-second) == 1){
+        
+        if(!over){
+            if((int)(frame_second-second) == 1){
             second++;
+                
+            }
+            if(second>=60){
+                minute++;
+                second=0;
+                frame_second=0;
+            }
+        }
             
-        }
-        if(second>=60){
-            minute++;
-            second=0;
-            frame_second=0;
-        }
+        
         DrawText(TextFormat("TIME: 0%d:%d", minute, second),1200,30,26,WHITE);
         
         
@@ -714,6 +732,10 @@ int main(){
 
     UnloadSound(dot_sound);
     UnloadSound(big_dot_sound);
+    UnloadSound(ghost_eaten_sound);
+    UnloadSound(pac_eaten_sound);
+    UnloadSound(game_over_sound);
+    
 
 
     CloseAudioDevice();
