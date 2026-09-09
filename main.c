@@ -54,6 +54,12 @@ int main(){
     
     InitWindow(gwidth, gheight, "Pacman");
     SetTargetFPS(60);
+    InitAudioDevice(); 
+
+    Sound dot_sound = LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\freesound_community-carrotnom-92106.mp3");
+    Sound big_dot_sound= LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\chomp-1.mp3");
+    SetSoundVolume(dot_sound, 0.5f);
+    SetSoundVolume(big_dot_sound, 0.5f);
 
 
     int minute=0,second=0;
@@ -172,11 +178,25 @@ int main(){
             if (map[tile_i][tile_j] == 'd') {
                 map[tile_i][tile_j] = 'e'; 
                 score += 10;
+
+                
+                
+                PlaySound(dot_sound);
+                 
+                
+                
+
             } 
             else if (map[tile_i][tile_j] == 'b') {
                 map[tile_i][tile_j] = 'e'; 
                 score += 50;
 
+                
+                
+                PlaySound(big_dot_sound);
+                
+                
+                
                 
                 phase=frightened;
                 flip_dir(&blinky_ghost);
@@ -690,5 +710,12 @@ int main(){
     UnloadTexture(tex_f);
     UnloadTexture(tex_l);
     UnloadTexture(tex_p);
+
+
+    UnloadSound(dot_sound);
+    UnloadSound(big_dot_sound);
+
+
+    CloseAudioDevice();
     CloseWindow();
 }
