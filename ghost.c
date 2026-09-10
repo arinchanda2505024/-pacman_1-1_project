@@ -27,6 +27,7 @@ void init_phase(ghost *g,ghost_name name){
         g->scatter_col=26;
         g->position = pixel((tile){ 11, 13 });
         g->dir=up;
+        g->eaten = false;
         break;
     case inky:
         g->color=SKYBLUE;
@@ -34,6 +35,7 @@ void init_phase(ghost *g,ghost_name name){
         g->scatter_col=26;
         g->position=pixel((tile){11,15});
         g->dir=up;
+        g->eaten = false;
         break;
     case pinky:
         g->color=PINK;
@@ -41,6 +43,7 @@ void init_phase(ghost *g,ghost_name name){
         g->scatter_row=1;
         g->position=pixel((tile){11,12});
         g->dir=up;
+        g->eaten = false;
         break;
     case clyde:
         g->color=ORANGE;
@@ -48,6 +51,7 @@ void init_phase(ghost *g,ghost_name name){
         g->scatter_row=29;
         g->position=pixel((tile){11,14});
         g->dir=up;
+        g->eaten = false;
         break;
     
     
@@ -238,7 +242,7 @@ void blinky_chase_alg(ghost *g,Vector2 pacpos){
             else if(check2<check1 && check2<check3){
                 g->dir=down;
             }
-            else if(check3<check1 && check3<check2){
+            else{
                 g->dir=right;
             }
             
@@ -407,35 +411,22 @@ float speed;
 
 void movement(ghost *g,float speed){
     tile current = tiles_no(g->position);
-    bool w;
-    w=wall(current);
-    if(!w){
-        if(g->dir == up){
-            
-            
-            
-            g->position=(Vector2){g->position.x,g->position.y-speed*dt};
-        }
-        else if(g->dir == down){
-            
-            
-            g->position.y+=speed*dt;
-            
-        }
-        else if(g->dir == right){
-            
-            
-            g->position.x+=speed*dt;
-            
-        }
-        else if(g->dir == left){
-            
-            
-            g->position.x-=speed*dt;
-            
-        }
-    }
+    Vector2 aligned = pixel(current);
 
+    Vector2 next = g->position;
+    
+    if(g->dir == up)    next.y -= speed*dt;
+    else if(g->dir == down)  next.y += speed*dt;
+    else if(g->dir == right) next.x += speed*dt;
+    else if(g->dir == left)  next.x -= speed*dt;
+
+    tile next_tile = tiles_no(next);
+
+    if(!wall(next_tile)){
+        g->position = next;              // path is clear, move normally
+    } else {
+        g->position = aligned;           // blocked: snap to exact tile center
+    }        
     
 
     if (current.row == 14) {
@@ -446,6 +437,7 @@ void movement(ghost *g,float speed){
             g->position.x = pixel((tile){ 14, 0 }).x;
         }
     }
+    
 }
 
 int random;
@@ -630,7 +622,7 @@ void ghost_frightened(ghost *g){
         }
     }
     g->color=BLUE;
-    g->eaten=true;
+    
 }
 
 
@@ -652,6 +644,14 @@ void eaten_phase_inky(ghost *g){
 void eaten_phase_clyde(ghost *g){
     Vector2 home=pixel((tile){11,14});
     blinky_chase_alg(g,home);
+}
+
+void check_eaten_reset(ghost *g, tile home) {
+    tile t = tiles_no(g->position);
+    if (g->eaten && t.row == home.row && t.col == home.col) {
+        g->eaten = false;
+        g->ignore_frightened = true;
+    }
 }
 
 Rectangle g_rec(ghost *g, ghost_name name){

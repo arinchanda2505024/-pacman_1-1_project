@@ -1,9 +1,12 @@
 #include "raylib.h"
-#include"raymath.h"
+#include "raymath.h"
 #include "collision.h"
 #include <stddef.h>
 #include "ghost.h"
 #include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 
 #define gheight 950
 #define gwidth 1900
@@ -11,8 +14,139 @@
 #define htiles 31
 #define main_speed 110
 
-//map er array
-char map[htiles][wtiles+1]=
+#define MAX_PLAYER_NAME 20
+#define MAX_LEADERBOARD_ENTRIES 15
+
+typedef enum {
+    MENU_MAIN,
+    MENU_NAME_INPUT,
+    MENU_DIFFICULTY,
+    MENU_LEADERBOARD,
+    MENU_RULES,
+    MENU_ABOUT,
+    MENU_QUIT
+} MenuScreen;
+
+typedef struct {
+    char name[MAX_PLAYER_NAME + 1];
+    int score;
+    int seconds;
+    int difficulty;
+} LeaderboardEntry;
+
+static bool MenuButton(Rectangle bounds, const char *label)
+{
+    Vector2 mouse = GetMousePosition();
+    bool hovered = CheckCollisionPointRec(mouse, bounds);
+    DrawRectangleRec(bounds, hovered ? DARKBLUE : BLUE);
+    DrawRectangleLinesEx(bounds, 2.0f, SKYBLUE);
+    DrawText(label, (int)(bounds.x + 22), (int)(bounds.y + 12), 28, RAYWHITE);
+    return hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+}
+
+static int LoadLeaderboard(LeaderboardEntry entries[MAX_LEADERBOARD_ENTRIES])
+{
+    FILE *file = fopen("leaderboard.txt", "r");
+    int count = 0;
+
+    if (file == NULL) return 0;
+
+    while (count < MAX_LEADERBOARD_ENTRIES && fscanf(file, "%20s %d %d %d", entries[count].name,&entries[count].score, &entries[count].seconds,&entries[count].difficulty) == 4) {     
+                  
+        count++;
+    }
+
+    fclose(file);
+    return count;
+}
+
+static void SortLeaderboard(LeaderboardEntry entries[], int count)
+{
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = i + 1; j < count; j++) {
+            bool swap = entries[j].score > entries[i].score ||
+                (entries[j].score == entries[i].score &&
+                 entries[j].seconds < entries[i].seconds);
+            if (swap) {
+                LeaderboardEntry temp = entries[i];
+                entries[i] = entries[j];
+                entries[j] = temp;
+            }
+        }
+    }
+}
+
+static void SaveLeaderboard(LeaderboardEntry entries[], int *count,const char *name, int score, int seconds,int difficulty){
+    if (*count < MAX_LEADERBOARD_ENTRIES) {
+        strncpy(entries[*count].name, name, MAX_PLAYER_NAME);
+        entries[*count].name[MAX_PLAYER_NAME] = '\0';
+        entries[*count].score = score;
+        entries[*count].seconds = seconds;
+        entries[*count].difficulty = difficulty;
+        (*count)++;
+    }
+    else {
+        entries[MAX_LEADERBOARD_ENTRIES - 1] = (LeaderboardEntry){"", score, seconds, difficulty};
+        strncpy(entries[MAX_LEADERBOARD_ENTRIES - 1].name, name, MAX_PLAYER_NAME);
+        entries[MAX_LEADERBOARD_ENTRIES - 1].name[MAX_PLAYER_NAME] = '\0';
+    }
+
+    SortLeaderboard(entries, *count);
+
+    FILE *file = fopen("leaderboard.txt", "w");
+    if (file == NULL) return;
+
+    for (int i = 0; i < *count; i++) {
+        fprintf(file, "%s %d %d %d\n", entries[i].name, entries[i].score, entries[i].seconds, entries[i].difficulty);
+               
+    }
+    fclose(file);
+}
+
+static const char *DifficultyName(int difficulty)
+{
+    if (difficulty == 0) return "Easy";
+    if (difficulty == 2) return "Hard";
+    return "Normal";
+}
+
+
+
+const char map_easy[htiles][wtiles+1]=
+    {"cssssssssssssssssssssssssssa",
+     "tddddddddddddvvddddddddddddt",
+     "tduwwgduwwwgdvvduwwwgduwwgdt",
+     "tbveevdveeevdvvdveeevdveevbt",
+     "tdpwwrdpwwwrdprdpwwwrdpwwrdt",
+     "tddddddddddddddddddddddddddt",
+     "tduwwgdugduwwwwwwgdugduwwgdt",
+     "tdpwwrdvvdpwwwwwwrdvvdpwwrdt",
+     "tddddddvvddddvvddddvvddddddt",
+     "lssssadvpwwgevveuwwrvdcssssf",
+     "eeeeetdvuwwreprepwwgvdteeeee",
+     "eeeeetdvveeeeeeeeeevvdteeeee",
+     "eeeeetdvvecssiissaevvdteeeee",
+     "sssssfdpreteeeeeeteprdlsssss",
+     "eeeeeedeeeteeeeeeteeedeeeeee",
+     "sssssadugeteeeeeeteugdcsssss",
+     "eeeeetdvvelssssssfevvdteeeee",
+     "eeeeetdvveeeeeeeeeevvdteeeee",
+     "eeeeetdvveuwwwwwwgevvdteeeee",
+     "cssssfdprepwwguwwreprdlssssa",
+     "tddddddddddddvvddddddddddddt",
+     "tduwwgduwwwgdvvduwwwgduwwgdt",
+     "tdpwgvdpwwwrdprdpwwwrdvuwrdt",
+     "tbddvvddddddddddddddddvvddbt",
+     "twgdvvdugduwwwwwwgdugdvvduwt",
+     "twrdprdvvdpwwguwwrdvvdprdpwt",
+     "tddddddvvddddvvddddvvddddddt",
+     "tduwwwwrpwwgdvvduwwrpwwwwgdt",
+     "tdpwwwwwwwwrdprdpwwwwwwwwrdt",
+     "tddddddddddddddddddddddddddt",
+     "lssssssssssssssssssssssssssf"
+    };
+
+const char map_normal[htiles][wtiles+1]=
     {"cssssssssssssssssssssssssssa",//1
      "tdddddddddvvddddvvdddddddddt",//2
      "tbuwwwwwgdvvdugdvvduwwwwwgbt",//3
@@ -45,8 +179,44 @@ char map[htiles][wtiles+1]=
      "tddddddvvddddddddddvvddddddt",//30
      "lssssssssssssssssssssssssssf"//31
     };
-     //pacman er first position
-    Rectangle pacman= {976, 670,24,24}; 
+
+const char map_hard[htiles][wtiles+1]=
+    {"cssssssssssssssssssssssssssa",//1
+     "tddddddddddddddddddddddddddt",//2
+     "tbugduwwgduwwwwwwgduwwgdugbt",//3done
+     "tdvvdveevdvuwwwwgvdveevdvvdt",//4done
+     "tdvvdpwwrdvvddddvvdpwwrdvvdt",//5done
+     "tdvvddddddvvdugdvvddddddvvdt",//6done
+     "tdvpwgdugdvvdvvdvvdugduwrvdt",//7done
+     "tdpwwrdvvdprdvvdprdvvdpwwrdt",//8done
+     "tddddddvvddddvvddddvvddddddt",//9done
+     "lsaduwwrpwwgdvvduwwrpwwgdcsf",//10done
+     "eetdpwwguwwrdprdpwwguwwrdtee",//11done
+     "eetddddvvddddddddddvvddddtee",//12done
+     "csfdugdvvdcssiissadvvdugdpsa",//13done
+     "tdddvvdprdteeeeeetdprdvvdddt",//14done
+     "eduwrvddddteeeeeetddddvpwgde",//15done
+     "tdpwgvdugdteeeeeetdugdvuwrdt",//16done
+     "tdddvvdvvdlssssssfdvvdvvdddt",//17done
+     "lsadprdvvddddddddddvvdprdcsf",//18done
+     "eetddddvpwwgdugduwwrvddddtee",//19done
+     "eetdugdpwwwrdvvdpwwwrdugdtee",//20done
+     "eetdvvdddddddvvdddddddvvdtee",//21done
+     "eetdvpwwgdugdvvdugduwwrvdtee",//22done
+     "csfdpwwwrdvvdprdvvdpwwwrdlsa",//23done
+     "tbddddddddvvddddvvddddddddbt",//24done
+     "tduwwgdugdvpwwwwrvdugduwwgdt",//25done
+     "tdvuwrdvvdpwwwwwwrdvvdpwgvdt",//26done
+     "tdvvdddvvddddddddddvvdddvvdt",//27done
+     "tdvvduwrpwwgdugduwwrpwgdvvdt",//28done
+     "tdprdpwwwwwrdvvdpwwwwwrdprdt",//29done
+     "tddddddddddddvvddddddddddddt",//30done
+     "lssssssssssssssssssssssssssf"
+    };   
+//map er array
+char map[htiles][wtiles+1];
+//pacman er first position
+Rectangle pacman= {976, 670,24,24}; 
     
     
 
@@ -56,16 +226,189 @@ int main(){
     SetTargetFPS(60);
     InitAudioDevice(); 
 
-    Sound dot_sound = LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\freesound_community-carrotnom-92106.mp3");
-    Sound big_dot_sound= LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\chomp-1.mp3");
-    Sound ghost_eaten_sound = LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\universfield-power-punch-192118.mp3");
-    Sound pac_eaten_sound = LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\muhahaha-made-with-Voicemod.mp3");  
-    Sound game_over_sound = LoadSound("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\cat-laughing-at-you-made-with-Voicemod.mp3");
+    MenuScreen menu_screen = MENU_MAIN;
+    LeaderboardEntry leaderboard[MAX_LEADERBOARD_ENTRIES] = { 0 };
+    int leaderboard_count = LoadLeaderboard(leaderboard);
+    SortLeaderboard(leaderboard, leaderboard_count);
+    char player_name[MAX_PLAYER_NAME + 1] = "";
+    int player_name_length = 0;
+    int selected_difficulty = 1;
+    int leaderboard_difficulty = 0;
+    bool start_game = false;
 
-    SetSoundVolume(dot_sound, 0.5f);
+    while (!WindowShouldClose() && !start_game) {
+        BeginDrawing();
+        ClearBackground((Color){ 8, 10, 28, 255 });
+
+        DrawText("PACMAN", 790, 100, 64, YELLOW);
+
+        if (menu_screen == MENU_MAIN) {
+            DrawText("Main Menu", 830, 190, 34, RAYWHITE);
+
+            if (MenuButton((Rectangle){ 760, 255, 380, 60 }, "Play")) {
+                menu_screen = MENU_NAME_INPUT;
+            }
+            
+            if (MenuButton((Rectangle){ 760, 330, 380, 60 }, "Leaderboard")) {
+                menu_screen = MENU_LEADERBOARD;
+            }
+            if (MenuButton((Rectangle){ 760, 405, 380, 60 }, "Game Rules")) {
+                menu_screen = MENU_RULES;
+            }
+            if (MenuButton((Rectangle){ 760, 480, 380, 60 }, "About Us")) {
+                menu_screen = MENU_ABOUT;
+            }
+            if (MenuButton((Rectangle){ 760, 555, 380, 60 }, "Quit")) {
+                EndDrawing();
+                CloseAudioDevice();
+                CloseWindow();
+                return 0;
+            }
+        }
+        else if (menu_screen == MENU_NAME_INPUT) {
+            DrawText("Enter your name", 765, 260, 36, RAYWHITE);
+            DrawRectangle(700, 330, 500, 58, DARKBLUE);
+            DrawRectangleLinesEx((Rectangle){ 700, 330, 500, 58 }, 2.0f, SKYBLUE);
+            DrawText(player_name, 720, 345, 30, WHITE);
+            DrawText("Press Enter to continue", 770, 430, 24, LIGHTGRAY);
+
+            int key = GetCharPressed();
+            while (key > 0) {
+                if (isprint((unsigned char)key) && key != ' ' && player_name_length < MAX_PLAYER_NAME) {
+                    
+                    player_name[player_name_length++] = (char)key;
+                    player_name[player_name_length] = '\0';
+                }
+                key = GetCharPressed();
+            }
+
+            if (IsKeyPressed(KEY_BACKSPACE) && player_name_length > 0) {
+                player_name[--player_name_length] = '\0';
+            }
+            if (IsKeyPressed(KEY_ENTER) && player_name_length > 0) {
+                menu_screen = MENU_DIFFICULTY;
+            }
+            if (IsKeyPressed(KEY_ESCAPE))
+                menu_screen = MENU_MAIN;
+        }
+        else if (menu_screen == MENU_DIFFICULTY) {
+            DrawText("Choose difficulty", 735, 220, 36, RAYWHITE);
+            if (MenuButton((Rectangle){ 760, 300, 380, 60 }, "Easy")) {
+                selected_difficulty = 0;
+                start_game = true;
+            }
+            if (MenuButton((Rectangle){ 760, 380, 380, 60 }, "Normal")) {
+                selected_difficulty = 1;
+                start_game = true;
+            }
+            if (MenuButton((Rectangle){ 760, 460, 380, 60 }, "Hard")) {
+                selected_difficulty = 2;
+                start_game = true;
+            }
+            if (MenuButton((Rectangle){ 760, 560, 380, 60 }, "Back")) {
+                menu_screen = MENU_MAIN;
+            }
+        }
+        else if (menu_screen == MENU_LEADERBOARD) {
+            DrawText("Leaderboard", 770, 185, 40, YELLOW);
+            if (MenuButton((Rectangle){ 590, 255, 210, 55 }, "Easy")) {
+                leaderboard_difficulty = 0;
+            }
+            if (MenuButton((Rectangle){ 845, 255, 210, 55 }, "Normal")) {
+                leaderboard_difficulty = 1;
+            }
+            if (MenuButton((Rectangle){ 1100, 255, 210, 55 }, "Hard")) {
+                leaderboard_difficulty = 2;
+            }
+
+            DrawText(TextFormat("%s leaderboard", DifficultyName(leaderboard_difficulty)),760, 335, 28, RAYWHITE);
+                     
+            DrawText("Player", 600, 385, 26, SKYBLUE);
+            DrawText("Score", 950, 385, 26, SKYBLUE);
+            DrawText("Time", 1130, 385, 26, SKYBLUE);
+
+            int rank = 1;
+            for (int i = 0; i < leaderboard_count; i++) {
+                if (leaderboard[i].difficulty != leaderboard_difficulty) continue;
+
+                DrawText(TextFormat("%d. %s", rank, leaderboard[i].name),600, 430 + (rank - 1) * 40, 24, RAYWHITE);
+                         
+                DrawText(TextFormat("%d", leaderboard[i].score),950, 430 + (rank - 1) * 40, 24, RAYWHITE);
+                         
+                DrawText(TextFormat("%02d:%02d", leaderboard[i].seconds / 60,leaderboard[i].seconds % 60),1130, 430 + (rank - 1) * 40, 24, RAYWHITE);
+                                    
+                         
+                rank++;
+            }
+            if (rank == 1) {
+                DrawText("No completed games for this difficulty.",690, 440, 26, LIGHTGRAY);
+                         
+            }
+            if (MenuButton((Rectangle){ 760, 740, 380, 60 }, "Back")) {
+                menu_screen = MENU_MAIN;
+            }
+        }
+        else if (menu_screen == MENU_RULES) {
+            DrawText("Game Rules", 800, 195, 40, YELLOW);
+            DrawText("Eat every dot to finish the level.", 620, 290, 28, RAYWHITE);
+            DrawText("Avoid ghosts unless they are frightened.", 620, 335, 28, RAYWHITE);
+            DrawText("You can eat ghosts during their frightened phase",620,380,28,RAYWHITE);
+            DrawText("Power pellets make ghosts frightened for a short time.", 620, 380, 28, RAYWHITE);
+            DrawText("Use arrow keys or W A S D to move.", 620, 425, 28, RAYWHITE);
+            if (MenuButton((Rectangle){ 760, 600, 380, 60 }, "Back")) {
+                menu_screen = MENU_MAIN;
+            }
+        }
+        else if (menu_screen == MENU_ABOUT) {
+            DrawText("About Us", 820, 220, 40, YELLOW);
+            
+            const char *about_text ="We are presenting our Level-1/Term-1 (L1T1) group project. We have recreated one of\n\n"
+                "the most popular and OG game from 1980 till now uaing raylib functions. Presenting you the PACMAN!\n\n"
+                "The game was developed by me Arin Kumar Chanda and my project partner Ahmed Muhaymin under the supervision\n\n"
+                "of our respectful Dr. Ch. Md. Rakin Haider Sir. His supervision and guidance helped us to develop the game\n\n"
+                "properly. We have added some exciting new maps and challenges. Let's see who can avoid those unpredictable\n\n"
+                "ghosts and complete the maps fast with highest points.Hope you will enjoy the game.\n\n\n\n"
+                "Thank you!\n";
+                
+
+            DrawText(about_text, 420, 300, 22, RAYWHITE);
+            
+            if (MenuButton((Rectangle){ 760, 750, 380, 60 }, "Back")) {
+                menu_screen = MENU_MAIN;
+            }
+        }
+        
+
+        EndDrawing();
+    }
+
+    if (!start_game) {
+        CloseAudioDevice();
+        return 0;
+    }
+
+    if (selected_difficulty == 0) {
+        memcpy(map, map_easy, sizeof(map));
+    } 
+    else if (selected_difficulty == 2) {
+        memcpy(map, map_hard, sizeof(map));
+    } 
+    else {
+        memcpy(map, map_normal, sizeof(map));
+    }
+
+    Sound dot_sound = LoadSound("assets\\audio\\freesound_community-carrotnom-92106.mp3");
+    Sound big_dot_sound= LoadSound("assets\\audio\\chomp-1.mp3");
+    Sound ghost_eaten_sound = LoadSound("assets\\audio\\universfield-power-punch-192118.mp3");
+    Sound pac_eaten_sound = LoadSound("assets\\audio\\muhahaha-made-with-Voicemod.mp3");  
+    Sound game_over_sound = LoadSound("assets\\audio\\cat-laughing-at-you-made-with-Voicemod.mp3");
+    Sound game_finish_sound = LoadSound("assets\\audio\\dragon-studio-wow-423653.mp3");
+
+    SetSoundVolume(dot_sound, 0.05f);
     SetSoundVolume(big_dot_sound, 0.5f);
     SetSoundVolume(ghost_eaten_sound, 0.5f);
-    SetSoundVolume(pac_eaten_sound, 0.5f);
+    SetSoundVolume(pac_eaten_sound, 0.7f);
+    SetSoundVolume(game_over_sound,0.5f);
 
 
     int minute=0,second=0;
@@ -73,6 +416,19 @@ int main(){
     int wall_position_x[28];
     int wall_position_y[31];
     int life=3;
+    int dot_count=0;
+    float ghost_speed_multiplier;
+    if(selected_difficulty == 0){
+        ghost_speed_multiplier = 0.8f;
+
+    }
+    else if(selected_difficulty == 2){
+        ghost_speed_multiplier = 1.2f;
+    }
+    else{
+        ghost_speed_multiplier = 1.0f;
+    }
+                                   
 
     here:
     Vector2 position={976, 670};
@@ -94,18 +450,18 @@ int main(){
     //f= bottom right double corner, l= bottom left double corner
     
     //wall sprite er jonno
-    Texture tex_c = LoadTexture("sprite\\wall\\WALL_DOUBLE_CORNER_TL.png");
-    Texture tex_s = LoadTexture("sprite\\wall\\WALL_DOUBLE_H.png");
-    Texture tex_a = LoadTexture("sprite\\wall\\WALL_DOUBLE_CORNER_TR.png");
-    Texture tex_t = LoadTexture("sprite\\wall\\WALL_DOUBLE_V.png");
-    Texture tex_v = LoadTexture("sprite\\wall\\WALL_SINGLE_V.png");
-    Texture tex_u = LoadTexture("sprite\\wall\\WALL_SINGLE_CORNER_TL.png");
-    Texture tex_w = LoadTexture("sprite\\wall\\WALL_SINGLE_H.png");
-    Texture tex_g = LoadTexture("sprite\\wall\\WALL_SINGLE_CORNER_TR.png");
-    Texture tex_r = LoadTexture("sprite\\wall\\WALL_SINGLE_CORNER_BR.png");
-    Texture tex_f = LoadTexture("sprite\\wall\\WALL_DOUBLE_CORNER_BR.png");
-    Texture tex_l = LoadTexture("sprite\\wall\\WALL_DOUBLE_CORNER_BL.png");
-    Texture tex_p = LoadTexture("sprite\\wall\\WALL_SINGLE_CORNER_BL.png");
+    Texture tex_c = LoadTexture("assets\\sprite\\WALL_DOUBLE_CORNER_TL.png");
+    Texture tex_s = LoadTexture("assets\\sprite\\WALL_DOUBLE_H.png");
+    Texture tex_a = LoadTexture("assets\\sprite\\WALL_DOUBLE_CORNER_TR.png");
+    Texture tex_t = LoadTexture("assets\\sprite\\WALL_DOUBLE_V.png");
+    Texture tex_v = LoadTexture("assets\\sprite\\WALL_SINGLE_V.png");
+    Texture tex_u = LoadTexture("assets\\sprite\\WALL_SINGLE_CORNER_TL.png");
+    Texture tex_w = LoadTexture("assets\\sprite\\WALL_SINGLE_H.png");
+    Texture tex_g = LoadTexture("assets\\sprite\\WALL_SINGLE_CORNER_TR.png");
+    Texture tex_r = LoadTexture("assets\\sprite\\WALL_SINGLE_CORNER_BR.png");
+    Texture tex_f = LoadTexture("assets\\sprite\\WALL_DOUBLE_CORNER_BR.png");
+    Texture tex_l = LoadTexture("assets\\sprite\\WALL_DOUBLE_CORNER_BL.png");
+    Texture tex_p = LoadTexture("assets\\sprite\\WALL_SINGLE_CORNER_BL.png");
     
     
     
@@ -121,6 +477,8 @@ int main(){
 
     ghost_mode phase=scattered;
     bool over=false;
+    bool level_complete = false;
+    bool leaderboard_saved = false;
     
     while(!WindowShouldClose()){
         float dt= GetFrameTime();
@@ -184,7 +542,7 @@ int main(){
             if (map[tile_i][tile_j] == 'd') {
                 map[tile_i][tile_j] = 'e'; 
                 score += 10;
-
+                
                 
                 
                 PlaySound(dot_sound);
@@ -254,7 +612,7 @@ int main(){
         
         
         
-        if(!over){
+        if(!over && !level_complete){
             if(phase == scattered){
                 if(scattered_time<10.0f){
                     
@@ -294,10 +652,7 @@ int main(){
                     scattered_time = 0.0f;
                     chase_time = 0.0f;
                 }
-                movement(&blinky_ghost,ghost_normal_speed);
-                movement(&pinky_ghost,ghost_normal_speed);
-                movement(&inky_ghost,ghost_normal_speed);
-                movement(&clyde_ghost,ghost_normal_speed);
+                
             }
         
         
@@ -356,10 +711,7 @@ int main(){
                     scattered_time = 0.0f;
                     chase_time = 0.0f;
                 }
-                movement(&blinky_ghost, ghost_normal_speed);
-                movement(&pinky_ghost, ghost_normal_speed);
-                movement(&inky_ghost, ghost_normal_speed);
-                movement(&clyde_ghost, ghost_normal_speed);
+                
             }
         /*if(phase == frightened){
             if(frightened_time<6.0f){
@@ -374,13 +726,33 @@ int main(){
         */
         
             if (phase == frightened){
-                if(CheckCollisionRecs(pacman, ghost_rec_blinky) ||  CheckCollisionRecs(pacman, ghost_rec_pinky) ||  CheckCollisionRecs(pacman, ghost_rec_inky) || CheckCollisionRecs(pacman, ghost_rec_clyde)){
-                    phase = eaten; 
+                if (CheckCollisionRecs(pacman, ghost_rec_blinky) && !blinky_ghost.eaten) {
                     
+                    blinky_ghost.eaten = true;
                     PlaySound(ghost_eaten_sound);
-                    score+=200;
-                    continue; 
+                    score += 200;
                 }
+
+                if (CheckCollisionRecs(pacman, ghost_rec_pinky) && !pinky_ghost.eaten) {
+                    
+                    pinky_ghost.eaten = true;
+                    PlaySound(ghost_eaten_sound);
+                    score += 200;
+                }
+                if (CheckCollisionRecs(pacman, ghost_rec_inky) && !inky_ghost.eaten) {
+                    
+                    inky_ghost.eaten = true;
+                    PlaySound(ghost_eaten_sound);
+                    score += 200;
+                }
+                if (CheckCollisionRecs(pacman, ghost_rec_clyde) && !clyde_ghost.eaten) {
+                    
+                    clyde_ghost.eaten = true;
+                    PlaySound(ghost_eaten_sound);
+                    score += 200;
+                }
+
+                /* Do the same separately for Inky and Clyde */
                 
                 frightened_time += dt;
 
@@ -404,24 +776,24 @@ int main(){
                     
                     
 
-                if (at_tile_blinky) {
+                if (!blinky_ghost.eaten && at_tile_blinky && !blinky_ghost.ignore_frightened ) {
                     ghost_frightened(&blinky_ghost);
-                    blinky_ghost.eaten=true;
+                    
                     
                 }
-                else if (at_tile_pinky) {
+                if (!pinky_ghost.eaten && at_tile_pinky && !pinky_ghost.ignore_frightened) {
                     ghost_frightened(&pinky_ghost);
-                    pinky_ghost.eaten=true;
+                    
                     
                 }
-                else if (at_tile_inky) {
+                if (!inky_ghost.eaten && at_tile_inky && !inky_ghost.ignore_frightened) {
                     ghost_frightened(&inky_ghost);
-                    inky_ghost.eaten=true;
+                    
                     
                 }
-                else if (at_tile_clyde) {
+                if (!clyde_ghost.eaten && at_tile_clyde && !clyde_ghost.ignore_frightened) {
                     ghost_frightened(&clyde_ghost);
-                    clyde_ghost.eaten=true;
+                    
                     
                 }
 
@@ -430,13 +802,15 @@ int main(){
                     phase = chase;
                     frightened_time = 0.0f;
                     chase_time = 0.0f;
+
+                    blinky_ghost.ignore_frightened = false;
+                    pinky_ghost.ignore_frightened = false;
+                    inky_ghost.ignore_frightened = false;
+                    clyde_ghost.ignore_frightened = false;
                 }
-                movement(&blinky_ghost,ghost_frightended_speed);
-                movement(&pinky_ghost,ghost_frightended_speed);
-                movement(&inky_ghost,ghost_frightended_speed);
-                movement(&clyde_ghost,ghost_frightended_speed);
+                
             }
-            if (phase == eaten) {
+            /*if (phase == eaten) {
                 tile ghost_tile_blinky = tiles_no(blinky_ghost.position);
                 tile ghost_tile_pinky = tiles_no(pinky_ghost.position);
                 tile ghost_tile_inky = tiles_no(inky_ghost.position);
@@ -471,10 +845,7 @@ int main(){
                     eaten_phase_clyde(&clyde_ghost); 
                 }
                 
-                movement(&blinky_ghost, ghost_eaten_speed);
-                movement(&pinky_ghost, ghost_eaten_speed);
-                movement(&inky_ghost, ghost_eaten_speed);
-                movement(&clyde_ghost, ghost_eaten_speed);
+                
 
                 
                 if (ghost_tile_blinky.row == 11 && ghost_tile_blinky.col == 13 ) {
@@ -498,8 +869,106 @@ int main(){
                     scattered_time = 0.0f; 
                 }
                 
+            }*/
+        
+        
+            if (blinky_ghost.eaten) {
+                tile t = tiles_no(blinky_ghost.position);
+                Vector2 tile_pos = pixel(t);
+
+                bool at_tile =
+                    fabsf(blinky_ghost.position.x - tile_pos.x) < 1.0f && fabsf(blinky_ghost.position.y - tile_pos.y) < 1.0f;
+                    
+
+                if (at_tile) {
+                    blinky_ghost.position = tile_pos;
+                    eaten_phase_blinky(&blinky_ghost);
+                }
+
+                movement(&blinky_ghost, ghost_eaten_speed * ghost_speed_multiplier);
+                check_eaten_reset(&blinky_ghost, (tile){ 11, 13 });
+            }
+            else if (phase == frightened && !blinky_ghost.ignore_frightened) {
+                movement(&blinky_ghost, ghost_frightended_speed * ghost_speed_multiplier);
+            }
+            else {
+                movement(&blinky_ghost, ghost_normal_speed * ghost_speed_multiplier);
+                    
+            }
+
+            if (pinky_ghost.eaten) {
+                tile t = tiles_no(pinky_ghost.position);
+                Vector2 tile_pos = pixel(t);
+
+                bool at_tile =
+                    fabsf(pinky_ghost.position.x - tile_pos.x) < 1.0f && fabsf(pinky_ghost.position.y - tile_pos.y) < 1.0f;
+                    
+
+                if (at_tile) {
+                    pinky_ghost.position = tile_pos;
+                    eaten_phase_pinky(&pinky_ghost);
+                }
+
+                movement(&pinky_ghost, ghost_eaten_speed * ghost_speed_multiplier);
+                check_eaten_reset(&pinky_ghost, (tile){ 11, 12});
+            }
+            else if (phase == frightened && !pinky_ghost.ignore_frightened) {
+                movement(&pinky_ghost, ghost_frightended_speed * ghost_speed_multiplier);
+            }
+            else {
+                movement(&pinky_ghost, ghost_normal_speed * ghost_speed_multiplier);
+                    
+            }
+
+           if (inky_ghost.eaten) {
+                tile t = tiles_no(inky_ghost.position);
+                Vector2 tile_pos = pixel(t);
+
+                bool at_tile =
+                    fabsf(inky_ghost.position.x - tile_pos.x) < 1.0f && fabsf(inky_ghost.position.y - tile_pos.y) < 1.0f;
+                    
+
+                if (at_tile) {
+                    inky_ghost.position = tile_pos;
+                    eaten_phase_inky(&inky_ghost);
+                }
+
+                movement(&inky_ghost, ghost_eaten_speed * ghost_speed_multiplier);
+                check_eaten_reset(&inky_ghost, (tile){ 11, 15 });
+            }
+            else if (phase == frightened && !inky_ghost.ignore_frightened) {
+                movement(&inky_ghost, ghost_frightended_speed * ghost_speed_multiplier);
+            }
+            else {
+                movement(&inky_ghost, ghost_normal_speed * ghost_speed_multiplier);
+                    
+            }
+
+            if (clyde_ghost.eaten) {
+                tile t = tiles_no(clyde_ghost.position);
+                Vector2 tile_pos = pixel(t);
+
+                bool at_tile =
+                    fabsf(clyde_ghost.position.x - tile_pos.x) < 1.0f && fabsf(clyde_ghost.position.y - tile_pos.y) < 1.0f;
+                    
+
+                if (at_tile) {
+                    clyde_ghost.position = tile_pos;
+                    eaten_phase_clyde(&clyde_ghost);
+                }
+
+                movement(&clyde_ghost, ghost_eaten_speed * ghost_speed_multiplier);
+                check_eaten_reset(&clyde_ghost, (tile){ 11, 12 });
+            }
+            else if (phase == frightened && !clyde_ghost.ignore_frightened) {
+                movement(&clyde_ghost, ghost_frightended_speed * ghost_speed_multiplier);
+            }
+            else {
+                movement(&clyde_ghost, ghost_normal_speed * ghost_speed_multiplier);
+                    
             }
         }
+
         
         
 
@@ -578,18 +1047,7 @@ int main(){
         }
     }
 
-        
-        
-       
-        
-        /*if(position.x == 612 && position.y == 462){
-            position.x = 586;
-            position.x = 1288;
-            position.y = 462;
-        }*/
-        
-
-            
+         
         
         for(int i=0; i<htiles;i++){
             for(int j=0; j<wtiles; j++){
@@ -614,8 +1072,11 @@ int main(){
 
             }
         }
+        bool hit_dangerous_ghost =(CheckCollisionRecs(pacman, ghost_rec_blinky) && !blinky_ghost.eaten) || (CheckCollisionRecs(pacman, ghost_rec_pinky)  && !pinky_ghost.eaten) || (CheckCollisionRecs(pacman, ghost_rec_inky)  && !inky_ghost.eaten) || (CheckCollisionRecs(pacman, ghost_rec_clyde)  && !clyde_ghost.eaten);
+    
+    
         
-        if(!over && (phase == chase || phase == scattered)){
+        if(!over && (phase == chase || phase == scattered) && hit_dangerous_ghost){
             if(CheckCollisionRecs(pacman, ghost_rec_blinky) || CheckCollisionRecs(pacman, ghost_rec_pinky) || CheckCollisionRecs(pacman, ghost_rec_inky) || CheckCollisionRecs(pacman, ghost_rec_clyde)){
                 
                 life--;
@@ -627,7 +1088,12 @@ int main(){
 
                     over=true;
                     PlaySound(game_over_sound);
-                    
+                    if (!leaderboard_saved) {
+                        SaveLeaderboard(leaderboard, &leaderboard_count, player_name,
+                                        score, minute * 60 + second,
+                                        selected_difficulty);
+                        leaderboard_saved = true;
+                    }
                     
                 }
             }
@@ -642,12 +1108,37 @@ int main(){
             movement(&inky_ghost, 0.0f);
             movement(&clyde_ghost, 0.0f);
         } 
+        dot_count=0;
+        for(int i=0;i<htiles;i++){
+            for(int j=0;j<wtiles;j++){
+                if(map[i][j]=='d' || map[i][j] == 'b'){
+                    dot_count++;
+                }
+            }
+        }
+
+        if (dot_count == 0 && !leaderboard_saved) {
+            level_complete = true;
+            SaveLeaderboard(leaderboard, &leaderboard_count, player_name, score, minute * 60 + second,selected_difficulty);
+                           
+                            
+            leaderboard_saved = true;
+            PlaySound(game_finish_sound);
+        }
+        if (level_complete) {
+            DrawText("You passed the level!", 800, 50, 26, GREEN);
+            nextSpeed=(Vector2){0.0f,0.0f};
+            DrawText(TextFormat("Player: %s   Difficulty: %s", player_name,DifficultyName(selected_difficulty)),760, 82, 22, RAYWHITE);
+                                
+                     
+        }
         
             
         
         if(over){
             DrawText("Game Over", 898, 514,26, RED);
             nextSpeed=( Vector2){0,0};
+            
         }
 
         
@@ -662,7 +1153,7 @@ int main(){
 
 
         
-        if(!over){
+        if(!over && !level_complete){
             if((int)(frame_second-second) == 1){
             second++;
                 
@@ -694,18 +1185,26 @@ int main(){
             DrawRectangleRec(draw_g_rec_inky, BLUE);
             DrawRectangleRec(draw_g_rec_clyde, BLUE);
         }
-        else if(phase==eaten){
-            DrawRectangleRec(draw_g_rec_blinky, GRAY);
-            DrawRectangleRec(draw_g_rec_pinky, GRAY);
-            DrawRectangleRec(draw_g_rec_inky, GRAY);
-            DrawRectangleRec(draw_g_rec_clyde, GRAY);
-        }
         else{
             DrawRectangleRec(draw_g_rec_blinky, RED);
             DrawRectangleRec(draw_g_rec_pinky, PINK);
             DrawRectangleRec(draw_g_rec_inky, SKYBLUE);
             DrawRectangleRec(draw_g_rec_clyde, ORANGE);
         }
+        if(blinky_ghost.eaten){
+            DrawRectangleRec(draw_g_rec_blinky, GRAY);
+            
+        }
+        if(pinky_ghost.eaten){
+            DrawRectangleRec(draw_g_rec_pinky, GRAY);
+        }
+        if(inky_ghost.eaten){
+            DrawRectangleRec(draw_g_rec_inky, GRAY);
+        }
+        if(clyde_ghost.eaten){
+            DrawRectangleRec(draw_g_rec_clyde, GRAY);
+        }
+        
 
         
         
@@ -728,6 +1227,7 @@ int main(){
     UnloadTexture(tex_f);
     UnloadTexture(tex_l);
     UnloadTexture(tex_p);
+    
 
 
     UnloadSound(dot_sound);
@@ -735,6 +1235,7 @@ int main(){
     UnloadSound(ghost_eaten_sound);
     UnloadSound(pac_eaten_sound);
     UnloadSound(game_over_sound);
+    UnloadSound(game_finish_sound);
     
 
 
