@@ -226,6 +226,9 @@ int main(){
     SetTargetFPS(60);
     InitAudioDevice(); 
 
+    bool return_to_menu = false;
+
+    main_menu:;
     MenuScreen menu_screen = MENU_MAIN;
     LeaderboardEntry leaderboard[MAX_LEADERBOARD_ENTRIES] = { 0 };
     int leaderboard_count = LoadLeaderboard(leaderboard);
@@ -384,6 +387,7 @@ int main(){
 
     if (!start_game) {
         CloseAudioDevice();
+        CloseWindow();
         return 0;
     }
 
@@ -412,6 +416,8 @@ int main(){
 
 
     int minute=0,second=0;
+    // Keeps the fraction of a second between frames.
+    float timer_accumulator = 0.0f;
     int score=0;
     int wall_position_x[28];
     int wall_position_y[31];
@@ -428,6 +434,9 @@ int main(){
     else{
         ghost_speed_multiplier = 1.0f;
     }
+
+    
+    bool quit_requested = false;
                                    
 
     here:
@@ -568,19 +577,7 @@ int main(){
             }
         }
 
-        /*if(position.x<612){
-            position.x=612;
-            
-        }
-        else if(position.x>1262){
-            position.x=1262;
-        }
-        else if(position.y<98){
-            position.y=98;
-        }
-        else if(position.y>826){
-            position.y=826;
-        }*/
+        
        if(tile_i == 14){
             if(position.x < 564){
                 position.x = 1288;
@@ -1141,27 +1138,25 @@ int main(){
             
         }
 
-        
         DrawRectangleRec(pacman, YELLOW);
         
-        float frame_second;
-        frame_second+=dt;
-
         DrawText(TextFormat("SCORE: %d", score), 586, 30, 30, WHITE);
         DrawText("LIFE:",600,895,26,WHITE);
-        Texture2D life_sprite=LoadTexture("C:\\Users\\USER\\Desktop\\1-1 Project\\raylib_template\\life_sprite.png");
+        Texture2D life_sprite=LoadTexture("assets\\sprite\\life_sprite.png");
 
 
         
-        if(!over && !level_complete){
-            if((int)(frame_second-second) == 1){
-            second++;
-                
-            }
-            if(second>=60){
-                minute++;
-                second=0;
-                frame_second=0;
+        if (!over && !level_complete) {
+            timer_accumulator += dt;
+
+            while (timer_accumulator >= 1.0f) {
+                second++;
+                timer_accumulator -= 1.0f;
+
+                if (second >= 60) {
+                    minute++;
+                    second = 0;
+                }
             }
         }
             
@@ -1204,12 +1199,34 @@ int main(){
         if(clyde_ghost.eaten){
             DrawRectangleRec(draw_g_rec_clyde, GRAY);
         }
+
+        // Draw this last, so it stays above the maze, Pacman, and ghosts.
+        if (over || level_complete) {
+            DrawRectangle(700, 560, 500, 250, Fade(BLACK, 0.85f));
+            DrawRectangleLinesEx((Rectangle){ 700, 560, 500, 250 }, 2.0f, YELLOW);
+            DrawText(over ? "Game Over" : "Level Complete", 820, 580, 34,
+                     over ? RED : GREEN);
+
+            
+            if (MenuButton((Rectangle){ 760, 695, 380, 48 }, "Menu")) {
+                return_to_menu = true;
+            }
+            if (MenuButton((Rectangle){ 760, 755, 380, 48 }, "Quit")) {
+                quit_requested = true;
+            }
+        }
         
 
         
         
         
         EndDrawing();
+
+        if (quit_requested || return_to_menu) {
+            break;
+        }
+
+        
 
         
 
@@ -1238,6 +1255,11 @@ int main(){
     UnloadSound(game_finish_sound);
     
 
+
+    if (return_to_menu) {
+        return_to_menu = false;
+        goto main_menu;
+    }
 
     CloseAudioDevice();
     CloseWindow();
